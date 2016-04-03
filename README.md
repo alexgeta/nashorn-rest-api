@@ -7,9 +7,9 @@ Methods summary:
   GET http://localhost:8080/api/execute/{script}    
   POST http://localhost:8080/api/execute
   
-    add script to request body and set Content-Type: text/plain   
-  To execute script in async mode add 'async' header with value 'true'.  
-  For specify execution timeout add 'timeout' header with integer value in seconds, by default is 5.    
+    -add script to request body and set Content-Type: text/plain   
+  -To execute script in async mode add 'async' header with value 'true'.  
+  -For specify execution timeout add 'timeout' header with integer value in seconds, by default is 5.    
   Returns execution context object or errors if any occurred.   
   
 2. List execution contexts  
