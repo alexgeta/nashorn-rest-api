@@ -50,7 +50,7 @@ public class ExecutionManagerImpl implements ExecutionManager<ExecutionContext> 
             result.setReturnedValue(returnedValue != null ? returnedValue.toString() : null);
             result.setExecutionId(executionId);
             result.setScript(scriptExecutor.getScript());
-            result.setStatus(scriptExecutor.getState().name());
+            result.setStatus(scriptExecutor.getState());
             if(StringUtils.isNotBlank(scriptExecutor.getOutput())){
                 result.setOut(scriptExecutor.getOutput());
             }

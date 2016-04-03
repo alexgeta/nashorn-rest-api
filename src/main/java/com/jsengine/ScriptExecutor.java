@@ -1,7 +1,6 @@
 package com.jsengine;
 
 import org.apache.commons.lang3.StringUtils;
-
 import javax.script.*;
 import java.io.StringWriter;
 
@@ -89,7 +88,4 @@ public class ScriptExecutor {
         return script;
     }
 
-    public enum State {
-        NEW, EXECUTION, STOPPED, EXECUTED, FAILED
-    }
 }

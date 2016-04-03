@@ -1,19 +1,22 @@
-package com.jsengine;
+package com.jsengine.rest;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.jsengine.ExecutionContext;
+import com.jsengine.ExecutionManagerImpl;
+import com.jsengine.State;
 import com.jsengine.intf.ExecutionManager;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.glassfish.jersey.server.ManagedAsync;
 
 import javax.script.ScriptException;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
+import javax.ws.rs.*;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
+import javax.ws.rs.container.TimeoutHandler;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.util.concurrent.TimeUnit;
 
 
 @Path("/api")
@@ -23,16 +26,42 @@ public class RestController {
     private static Gson gson = new GsonBuilder()
                                    .setPrettyPrinting()
                                    .create();
+    private long TIMEOUT = 5;
 
     @GET
     @Path("/execute/{script}")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response execute(@PathParam("script") String script) {
+    @ManagedAsync
+    public void execute(
+            @PathParam("script") String script,
+            @HeaderParam("async") boolean async,
+            @HeaderParam("timeout") Long timeout,
+            @Suspended final AsyncResponse asyncResponse) {
+        if(timeout != null){
+            TIMEOUT = timeout;
+        }
         ExecutionContext executionContext = new ExecutionContext();
+        executionContext.setScript(script);
         try {
             long executionId = executionManager.execute(script);
             executionContext = executionManager.get(executionId);
-            while (executionContext.getStatus().equals("EXECUTION")){
+            if(async) {
+                asyncResponse.resume(gson.toJson(executionContext));
+                return;
+            } else {
+                asyncResponse.setTimeout(TIMEOUT, TimeUnit.SECONDS);
+                asyncResponse.setTimeoutHandler(new TimeoutHandler() {
+                    @Override
+                    public void handleTimeout(AsyncResponse asyncResponse) {
+                        executionManager.delete(executionId);
+                        ExecutionContext response = new ExecutionContext();
+                        response.setScript(script);
+                        response.setError("Timeout exceeded.");
+                        asyncResponse.resume(gson.toJson(response));
+                    }
+                });
+            }
+            while (executionContext.getStatus() == State.EXECUTION){
                 Thread.sleep(100);
                 executionContext = executionManager.get(executionId);
             }
@@ -41,7 +70,20 @@ public class RestController {
         } catch (Throwable e){
             executionContext.setError(ExceptionUtils.getStackTrace(e));
         }
-        return Response.status(200).entity(gson.toJson(executionContext)).build();
+        asyncResponse.resume(gson.toJson(executionContext));
+    }
+
+    @POST
+    @Path("/execute")
+    @Consumes(MediaType.TEXT_PLAIN)
+    @Produces(MediaType.APPLICATION_JSON)
+    @ManagedAsync
+    public void executePOST(
+            String script,
+            @HeaderParam("async") boolean async,
+            @HeaderParam("timeout") Long timeout,
+            @Suspended final AsyncResponse asyncResponse) {
+        execute(script, async, timeout, asyncResponse);
     }
 
     @GET
@@ -49,6 +91,13 @@ public class RestController {
     @Produces(MediaType.APPLICATION_JSON)
     public Response list() {
         return Response.status(200).entity(gson.toJson(executionManager.list())).build();
+    }
+
+    @POST
+    @Path("/list")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response listPOST() {
+        return list();
     }
 
     @GET
@@ -68,6 +117,13 @@ public class RestController {
         return Response.status(200).entity(gson.toJson(executionContext)).build();
     }
 
+    @POST
+    @Path("/get/{executionId}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getPOST(@PathParam("executionId") String executionId){
+        return get(executionId);
+    }
+
     @GET
     @Path("/delete/{executionId}")
     @Produces(MediaType.APPLICATION_JSON)
@@ -82,16 +138,10 @@ public class RestController {
         return Response.status(200).entity(gson.toJson(executionContext)).build();
     }
 
-    @GET
-    @Path("/async")
-    public void asyncGet(@Suspended final AsyncResponse asyncResponse) {
-        new Thread(() -> {
-            try {
-                Thread.sleep(1000*10);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            asyncResponse.resume("Done");
-        }).start();
+    @POST
+    @Path("/delete/{executionId}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response deletePOST(@PathParam("executionId") String executionId) {
+        return delete(executionId);
     }
 }

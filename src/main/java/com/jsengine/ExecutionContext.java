@@ -4,7 +4,7 @@ public class ExecutionContext {
 
     private Long executionId;
     private String script;
-    private String status;
+    private State status;
     private String returnedValue;
     private String out;
     private String error;
@@ -25,11 +25,11 @@ public class ExecutionContext {
         this.script = script;
     }
 
-    public String getStatus() {
+    public State getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(State status) {
         this.status = status;
     }
 
